@@ -3,7 +3,9 @@ buildscript {
 
     repositories {
         google()
+        jcenter()
         mavenCentral()
+        maven { url "https://jitpack.io" }
     }
 
     dependencies {
@@ -12,14 +14,26 @@ buildscript {
     }
 }
 
+plugins {
+    id "com.github.spotbugs" version "2.0.0" apply(false)
+}
+
 allprojects {
+    configurations.all {
+        resolutionStrategy {
+            cacheChangingModulesFor 0, 'seconds'
+        }
+    }
+
     repositories {
+        mavenLocal()
         google()
+        jcenter()
         mavenCentral()
         maven { url "https://jitpack.io" }
     }
 }
 
-task clean(type: Delete) {
+tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
