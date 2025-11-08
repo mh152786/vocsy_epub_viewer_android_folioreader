@@ -5,7 +5,7 @@ buildscript {
 
     repositories {
         google()
-        jcenter()
+        mavenCentral()  // Changed from jcenter()
     }
 
     dependencies {
@@ -14,22 +14,20 @@ buildscript {
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
 
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
-        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
+        // REMOVE THESE TWO LINES:
+        // classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
+        // classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
+
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$versions.kotlin"
     }
 }
 
-plugins {
-    id "com.github.spotbugs" version "2.0.0" apply(false)
-}
-
-// Workaround to be able to access SpotBugsTask from external gradle script.
-// More info: https://discuss.gradle.org/t/buildscript-dependencies-in-external-script/23243
-project.extensions.extraProperties.set('SpotBugsTask', com.github.spotbugs.SpotBugsTask)
+// Remove or comment out the spotbugs plugin if it causes issues:
+// plugins {
+//     id "com.github.spotbugs" version "2.0.0" apply(false)
+// }
 
 allprojects {
-
     configurations.all {
         resolutionStrategy {
             cacheChangingModulesFor 0, 'seconds'
@@ -39,7 +37,7 @@ allprojects {
     repositories {
         mavenLocal()
         google()
-        jcenter()
+        mavenCentral()  // Changed from jcenter()
         maven { url "https://jitpack.io" }
     }
 }
