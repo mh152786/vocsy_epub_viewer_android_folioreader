@@ -11,8 +11,9 @@ versions.androidMinSdk = 21
 versions.androidCompileSdk = 33
 versions.androidTargetSdk = 33
 
-versions.androidGradlePlugin = "3.5.3"
-versions.kotlin = "1.3.72"
+// Use compatible versions for Gradle 6.3
+versions.androidGradlePlugin = "4.0.1"  // Compatible with Gradle 6.3
+versions.kotlin = "1.3.72"  // Compatible with AGP 4.0.1
 
 versions.appcompat = "1.1.0"
 versions.constraintLayout = "1.1.3"
