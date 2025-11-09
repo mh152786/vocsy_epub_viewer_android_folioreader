@@ -469,98 +469,111 @@ class FolioActivity : AppCompatActivity(), FolioActivityCallback, MediaControlle
             createdMenu = menu
             menuInflater.inflate(R.menu.menu_main, menu)
 
-            val config = AppUtil.getSavedConfig(applicationContext)!!
+            val config = AppUtil.getSavedConfig(applicationContext) ?: Config()
 
-//            toolbar?.getOverflowIcon()?.setColorFilter(config.currentThemeColor, PorterDuff.Mode.SRC_ATOP);
-//            for (i in 0 until menu.size()) {
-//                val drawable: Drawable = menu.getItem(i).getIcon()
-//                if (drawable != null) {
-//                    drawable.mutate()
-//                    drawable.setColorFilter(
-//                        config.currentThemeColor,
-//                        PorterDuff.Mode.SRC_ATOP
-//                    )
-//                }
-//            }
+            // Debug: Log all menu items
+            Log.d("MenuDebug", "=== Menu Inflation Debug ===")
+            for (i in 0 until menu.size()) {
+                val item = menu.getItem(i)
+                val itemName = try {
+                    resources.getResourceName(item.itemId)
+                } catch (e: Exception) {
+                    "Unknown item"
+                }
+                Log.d("MenuDebug", " - $itemName: visible=${item.isVisible}, enabled=${item.isEnabled}")
+            }
 
+            // Ensure all icons are properly colored and visible
+            try {
+                // Bookmark icon
+                menu.findItem(R.id.itemBookmark)?.let { bookmarkItem ->
+                    bookmarkItem.isVisible = true
+                    UiUtil.setColorIntToDrawable(config.currentThemeColor, bookmarkItem.icon)
+                    Log.d("MenuDebug", "Bookmark icon set: visible=true")
+                }
 
-            UiUtil.setColorIntToDrawable(
-                config.currentThemeColor, menu.findItem(R.id.itemBookmark).icon
-            )
-            UiUtil.setColorIntToDrawable(
-                config.currentThemeColor, menu.findItem(R.id.itemSearch).icon
-            )
-            UiUtil.setColorIntToDrawable(
-                config.currentThemeColor, menu.findItem(R.id.itemConfig).icon
-            )
-            UiUtil.setColorIntToDrawable(config.currentThemeColor, menu.findItem(R.id.itemTts).icon)
+                // Search icon
+                menu.findItem(R.id.itemSearch)?.let { searchItem ->
+                    searchItem.isVisible = true
+                    UiUtil.setColorIntToDrawable(config.currentThemeColor, searchItem.icon)
+                    Log.d("MenuDebug", "Search icon set: visible=true")
+                }
 
-            if (!config.isShowTts) menu.findItem(R.id.itemTts).isVisible = false
+                // Config icon
+                menu.findItem(R.id.itemConfig)?.let { configItem ->
+                    configItem.isVisible = true
+                    UiUtil.setColorIntToDrawable(config.currentThemeColor, configItem.icon)
+                    Log.d("MenuDebug", "Config icon set: visible=true")
+                }
+
+                // TTS icon - only hide if explicitly disabled in config
+                menu.findItem(R.id.itemTts)?.let { ttsItem ->
+                    ttsItem.isVisible = config.isShowTts
+                    if (config.isShowTts) {
+                        UiUtil.setColorIntToDrawable(config.currentThemeColor, ttsItem.icon)
+                    }
+                    Log.d("MenuDebug", "TTS icon set: visible=${config.isShowTts}")
+                }
+            } catch (e: Exception) {
+                Log.e("MenuDebug", "Error setting menu icons", e)
+            }
+
+            // Set overflow menu color
+            try {
+                toolbar?.overflowIcon?.setColorFilter(config.currentThemeColor, PorterDuff.Mode.SRC_ATOP)
+            } catch (e: Exception) {
+                Log.e("MenuDebug", "Error setting overflow icon color", e)
+            }
+
+            Log.d("MenuDebug", "=== Menu Setup Complete ===")
+
         } catch (e: Exception) {
-            Log.e("FOLIOREADER", e.message.toString())
+            Log.e("FOLIOREADER", "Error in onCreateOptionsMenu: " + e.message, e)
         }
 
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        //Log.d(LOG_TAG, "-> onOptionsItemSelected -> " + item.getItemId());
+        Log.d("MenuDebug", "Menu item clicked: ${resources.getResourceName(item.itemId)}")
 
         when (item.itemId) {
             android.R.id.home -> {
                 Log.v(LOG_TAG, "-> onOptionsItemSelected -> drawer")
-                startContentHighlightActivity()
+                try {
+                    // Add a small delay to ensure book is fully loaded
+                    handler?.postDelayed({
+                        startContentHighlightActivity()
+                    }, 100)
+                } catch (e: Exception) {
+                    Log.e(LOG_TAG, "Error opening navigation drawer", e)
+                    Toast.makeText(this, "Menu not available", Toast.LENGTH_SHORT).show()
+                }
                 return true
             }
             R.id.itemBookmark -> {
-                val readLocator = currentFragment!!.getLastReadLocator()
-                Log.v(LOG_TAG, "-> onOptionsItemSelected 'if' -> bookmark")
+                Log.v(LOG_TAG, "-> onOptionsItemSelected -> bookmark")
 
+                val fragment = currentFragment
+                if (fragment == null) {
+                    Toast.makeText(this, "Page not ready for bookmarking", Toast.LENGTH_SHORT).show()
+                    return true
+                }
+
+                val readLocator = fragment.getLastReadLocator()
                 bookmarkReadLocator = readLocator
-                val localBroadcastManager = LocalBroadcastManager.getInstance(this)
-                val intent = Intent(FolioReader.ACTION_SAVE_READ_LOCATOR)
-                intent.putExtra(FolioReader.EXTRA_READ_LOCATOR, readLocator as Parcelable?)
-                localBroadcastManager.sendBroadcast(intent)
-                val dialog = Dialog(this, R.style.DialogCustomTheme)
-                dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-                dialog.setContentView(R.layout.dialog_bookmark)
-                dialog.show()
-                dialog.setCanceledOnTouchOutside(true)
-                dialog.setOnCancelListener {
-                    Toast.makeText(
-                        this, "please enter a Bookmark name and then press Save", Toast.LENGTH_SHORT
-                    ).show()
-                }
-                dialog.findViewById<View>(R.id.btn_save_bookmark).setOnClickListener {
-                    val name =
-                        (dialog.findViewById<View>(R.id.bookmark_name) as EditText).text.toString()
-                    if (!TextUtils.isEmpty(name)) {
-                        val simpleDateFormat = SimpleDateFormat(DATE_FORMAT, Locale.getDefault())
-                        val id = BookmarkTable(this).insertBookmark(
-                            mBookId,
-                            simpleDateFormat.format(Date()),
-                            name,
-                            bookmarkReadLocator!!.toJson().toString()
-                        )
-                        Toast.makeText(
-                            this, getString(R.string.book_mark_success), Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        Toast.makeText(
-                            this,
-                            "please Enter a Bookmark name and then press Save",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    dialog.dismiss()
-                }
 
-
+                // Show bookmark dialog
+                showBookmarkDialog(readLocator)
                 return true
             }
             R.id.itemSearch -> {
-                Log.v(LOG_TAG, "-> onOptionsItemSelected -> " + item.title)
-                if (searchUri == null) return true
+                Log.v(LOG_TAG, "-> onOptionsItemSelected -> search")
+                if (searchUri == null) {
+                    Toast.makeText(this, "Search not available", Toast.LENGTH_SHORT).show()
+                    return true
+                }
+
                 val intent = Intent(this, SearchActivity::class.java)
                 intent.putExtra(SearchActivity.BUNDLE_SPINE_SIZE, spine?.size ?: 0)
                 intent.putExtra(SearchActivity.BUNDLE_SEARCH_URI, searchUri)
@@ -568,46 +581,107 @@ class FolioActivity : AppCompatActivity(), FolioActivityCallback, MediaControlle
                 intent.putExtra(SearchActivity.BUNDLE_SAVE_SEARCH_QUERY, searchQuery)
                 startActivityForResult(intent, RequestCode.SEARCH.value)
                 return true
-
             }
             R.id.itemConfig -> {
-                Log.v(LOG_TAG, "-> onOptionsItemSelected -> " + item.title)
+                Log.v(LOG_TAG, "-> onOptionsItemSelected -> config")
                 showConfigBottomSheetDialogFragment()
                 return true
-
             }
             R.id.itemTts -> {
-                Log.v(LOG_TAG, "-> onOptionsItemSelected -> " + item.title)
+                Log.v(LOG_TAG, "-> onOptionsItemSelected -> tts")
                 showMediaController()
                 return true
             }
             else -> return super.onOptionsItemSelected(item)
         }
-
     }
 
-    private fun startContentHighlightActivity() {
-
-        val intent = Intent(this@FolioActivity, ContentHighlightActivity::class.java)
-
-        intent.putExtra(Constants.PUBLICATION, pubBox!!.publication)
+    private fun showBookmarkDialog(readLocator: ReadLocator?) {
         try {
-            intent.putExtra(CHAPTER_SELECTED, spine!![currentChapterIndex].href)
-        } catch (e: NullPointerException) {
-            Log.w(LOG_TAG, "-> ", e)
-            intent.putExtra(CHAPTER_SELECTED, "")
-        } catch (e: IndexOutOfBoundsException) {
-            Log.w(LOG_TAG, "-> ", e)
-            intent.putExtra(CHAPTER_SELECTED, "")
+            val dialog = Dialog(this, R.style.DialogCustomTheme)
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+            dialog.setContentView(R.layout.dialog_bookmark)
+            dialog.setCanceledOnTouchOutside(true)
+
+            dialog.setOnCancelListener {
+                Toast.makeText(
+                    this, "Please enter a bookmark name and then press Save", Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            dialog.findViewById<View>(R.id.btn_save_bookmark)?.setOnClickListener {
+                val name = (dialog.findViewById<View>(R.id.bookmark_name) as? EditText)?.text?.toString() ?: ""
+                if (name.isNotEmpty()) {
+                    val simpleDateFormat = SimpleDateFormat(DATE_FORMAT, Locale.getDefault())
+                    val id = BookmarkTable(this).insertBookmark(
+                        mBookId,
+                        simpleDateFormat.format(Date()),
+                        name,
+                        bookmarkReadLocator?.toJson()?.toString() ?: ""
+                    )
+                    Toast.makeText(this, getString(R.string.book_mark_success), Toast.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Please enter a bookmark name and then press Save",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            dialog.show()
+        } catch (e: Exception) {
+            Log.e(LOG_TAG, "Error showing bookmark dialog", e)
+            Toast.makeText(this, "Cannot create bookmark", Toast.LENGTH_SHORT).show()
         }
-
-        intent.putExtra(FolioReader.EXTRA_BOOK_ID, mBookId)
-        intent.putExtra(BOOK_TITLE, bookFileName)
-
-        startActivityForResult(intent, RequestCode.CONTENT_HIGHLIGHT.value)
-        overridePendingTransition(R.anim.slide_in_left, R.anim.disappear)
     }
+    private fun startContentHighlightActivity() {
+        try {
+            Log.d("ContentHighlight", "Starting content highlight activity")
 
+            // Check if book is properly initialized
+            if (pubBox == null) {
+                Log.e("ContentHighlight", "pubBox is null - book not initialized")
+                Toast.makeText(this, "Book not loaded yet. Please wait.", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            if (pubBox!!.publication == null) {
+                Log.e("ContentHighlight", "Publication is null")
+                Toast.makeText(this, "Book content not available", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val intent = Intent(this@FolioActivity, ContentHighlightActivity::class.java)
+
+            // Safely pass publication
+            intent.putExtra(Constants.PUBLICATION, pubBox!!.publication)
+
+            // Safely get current chapter
+            val chapterSelected = try {
+                if (spine != null && currentChapterIndex >= 0 && currentChapterIndex < spine!!.size) {
+                    spine!![currentChapterIndex].href ?: ""
+                } else {
+                    ""
+                }
+            } catch (e: Exception) {
+                Log.w(LOG_TAG, "Error getting current chapter", e)
+                ""
+            }
+
+            intent.putExtra(Constants.CHAPTER_SELECTED, chapterSelected)
+            intent.putExtra(FolioReader.EXTRA_BOOK_ID, mBookId ?: "")
+            intent.putExtra(Constants.BOOK_TITLE, bookFileName ?: "")
+
+            startActivityForResult(intent, RequestCode.CONTENT_HIGHLIGHT.value)
+            overridePendingTransition(R.anim.slide_in_left, R.anim.disappear)
+
+        } catch (e: Exception) {
+            Log.e("ContentHighlight", "Error starting content highlight", e)
+            Toast.makeText(this, "Cannot open menu right now", Toast.LENGTH_SHORT).show()
+        }
+    }
     private fun showConfigBottomSheetDialogFragment() {
         ConfigBottomSheetDialogFragment().show(
             supportFragmentManager, ConfigBottomSheetDialogFragment.LOG_TAG
@@ -623,11 +697,48 @@ class FolioActivity : AppCompatActivity(), FolioActivityCallback, MediaControlle
         try {
             initBook()
             onBookInitSuccess()
+
+            // Force refresh the menu after book is loaded
+            invalidateOptionsMenu()
+
         } catch (e: Exception) {
             Log.e(LOG_TAG, "-> Failed to initialize book", e)
             onBookInitFailure()
+            Toast.makeText(this, "Failed to load book: ${e.message}", Toast.LENGTH_LONG).show()
+            // Don't finish immediately, let user see the error
+        }
+    }
+
+    private fun onBookInitSuccess() {
+        val publication = pubBox!!.publication
+        spine = publication.readingOrder
+        title = publication.metadata.title
+
+        if (mBookId == null) {
+            mBookId = publication.metadata.identifier.ifEmpty {
+                if (publication.metadata.title.isNotEmpty()) {
+                    publication.metadata.title.hashCode().toString()
+                } else {
+                    bookFileName!!.hashCode().toString()
+                }
+            }
         }
 
+        // Initialize search
+        for (link in publication.links) {
+            if (link.rel.contains("search")) {
+                searchUri = Uri.parse("http://" + link.href!!)
+                break
+            }
+        }
+        if (searchUri == null) searchUri = Uri.parse(streamerUrl + "search")
+
+        configFolio()
+
+        // Log successful initialization
+        Log.d("BookInit", "Book initialized successfully: $title")
+        Log.d("BookInit", "Spine size: ${spine?.size}")
+        Log.d("BookInit", "Search available: ${searchUri != null}")
     }
 
     @Throws(Exception::class)
@@ -682,33 +793,33 @@ class FolioActivity : AppCompatActivity(), FolioActivityCallback, MediaControlle
         //TODO -> Fail gracefully
     }
 
-    private fun onBookInitSuccess() {
-        val publication = pubBox!!.publication
-        spine = publication.readingOrder
-        title = publication.metadata.title
-
-        if (mBookId == null) {
-            mBookId = publication.metadata.identifier.ifEmpty {
-                if (publication.metadata.title.isNotEmpty()) {
-                    publication.metadata.title.hashCode().toString()
-                } else {
-                    bookFileName!!.hashCode().toString()
-                }
-            }
-        }
-
-        // searchUri currently not in use as it's uri is constructed through Retrofit,
-        // code kept just in case if required in future.
-        for (link in publication.links) {
-            if (link.rel.contains("search")) {
-                searchUri = Uri.parse("http://" + link.href!!)
-                break
-            }
-        }
-        if (searchUri == null) searchUri = Uri.parse(streamerUrl + "search")
-
-        configFolio()
-    }
+//    private fun onBookInitSuccess() {
+//        val publication = pubBox!!.publication
+//        spine = publication.readingOrder
+//        title = publication.metadata.title
+//
+//        if (mBookId == null) {
+//            mBookId = publication.metadata.identifier.ifEmpty {
+//                if (publication.metadata.title.isNotEmpty()) {
+//                    publication.metadata.title.hashCode().toString()
+//                } else {
+//                    bookFileName!!.hashCode().toString()
+//                }
+//            }
+//        }
+//
+//        // searchUri currently not in use as it's uri is constructed through Retrofit,
+//        // code kept just in case if required in future.
+//        for (link in publication.links) {
+//            if (link.rel.contains("search")) {
+//                searchUri = Uri.parse("http://" + link.href!!)
+//                break
+//            }
+//        }
+//        if (searchUri == null) searchUri = Uri.parse(streamerUrl + "search")
+//
+//        configFolio()
+//    }
 
     override fun getStreamerUrl(): String {
 
@@ -1283,6 +1394,14 @@ class FolioActivity : AppCompatActivity(), FolioActivityCallback, MediaControlle
                 bundle?.putParcelable(FolioPageFragment.BUNDLE_SEARCH_LOCATOR, null)
             }
         }
+    }
+
+    private fun isBookReadyForNavigation(): Boolean {
+        return pubBox != null &&
+                pubBox?.publication != null &&
+                spine != null &&
+                spine!!.isNotEmpty() &&
+                currentChapterIndex >= 0
     }
 
 }
