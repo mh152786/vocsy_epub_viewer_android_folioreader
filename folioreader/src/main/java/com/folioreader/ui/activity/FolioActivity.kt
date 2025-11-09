@@ -471,42 +471,34 @@ class FolioActivity : AppCompatActivity(), FolioActivityCallback, MediaControlle
 
             val config = AppUtil.getSavedConfig(applicationContext)!!
 
-//            toolbar?.getOverflowIcon()?.setColorFilter(config.currentThemeColor, PorterDuff.Mode.SRC_ATOP);
-//            for (i in 0 until menu.size()) {
-//                val drawable: Drawable = menu.getItem(i).getIcon()
-//                if (drawable != null) {
-//                    drawable.mutate()
-//                    drawable.setColorFilter(
-//                        config.currentThemeColor,
-//                        PorterDuff.Mode.SRC_ATOP
-//                    )
-//                }
-//            }
+            // FORCE ALL MENU ITEMS TO BE VISIBLE
+            menu.findItem(R.id.itemBookmark).isVisible = true
+            menu.findItem(R.id.itemSearch).isVisible = true
+            menu.findItem(R.id.itemConfig).isVisible = true
+            menu.findItem(R.id.itemTts).isVisible = config.isShowTts
 
+            // Set colors for icons
+            UiUtil.setColorIntToDrawable(config.currentThemeColor, menu.findItem(R.id.itemBookmark).icon)
+            UiUtil.setColorIntToDrawable(config.currentThemeColor, menu.findItem(R.id.itemSearch).icon)
+            UiUtil.setColorIntToDrawable(config.currentThemeColor, menu.findItem(R.id.itemConfig).icon)
 
-            UiUtil.setColorIntToDrawable(
-                config.currentThemeColor, menu.findItem(R.id.itemBookmark).icon
-            )
-            UiUtil.setColorIntToDrawable(
-                config.currentThemeColor, menu.findItem(R.id.itemSearch).icon
-            )
-            UiUtil.setColorIntToDrawable(
-                config.currentThemeColor, menu.findItem(R.id.itemConfig).icon
-            )
-            UiUtil.setColorIntToDrawable(config.currentThemeColor, menu.findItem(R.id.itemTts).icon)
+            if (config.isShowTts) {
+                UiUtil.setColorIntToDrawable(config.currentThemeColor, menu.findItem(R.id.itemTts).icon)
+            }
 
-            if (!config.isShowTts) menu.findItem(R.id.itemTts).isVisible = false
+            Log.d("MenuDebug", "Menu setup completed successfully")
+
         } catch (e: Exception) {
-            Log.e("FOLIOREADER", e.message.toString())
+            Log.e("FOLIOREADER", "Error in onCreateOptionsMenu: ${e.message}", e)
         }
 
         return true
     }
-
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         //Log.d(LOG_TAG, "-> onOptionsItemSelected -> " + item.getItemId());
 
         when (item.itemId) {
+
             android.R.id.home -> {
                 Log.v(LOG_TAG, "-> onOptionsItemSelected -> drawer")
                 startContentHighlightActivity()
