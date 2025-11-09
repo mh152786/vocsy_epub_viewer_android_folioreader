@@ -467,68 +467,56 @@ class FolioActivity : AppCompatActivity(), FolioActivityCallback, MediaControlle
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         try {
             createdMenu = menu
+
+            Log.d("MenuDebug", "=== STARTING MENU CREATION ===")
+
+            // Inflate the main menu
             menuInflater.inflate(R.menu.menu_main, menu)
+            Log.d("MenuDebug", "Main menu inflated successfully")
 
             val config = AppUtil.getSavedConfig(applicationContext) ?: Config()
 
-            // Debug: Log all menu items
-            Log.d("MenuDebug", "=== Menu Inflation Debug ===")
-            for (i in 0 until menu.size()) {
-                val item = menu.getItem(i)
-                val itemName = try {
-                    resources.getResourceName(item.itemId)
-                } catch (e: Exception) {
-                    "Unknown item"
-                }
-                Log.d("MenuDebug", " - $itemName: visible=${item.isVisible}, enabled=${item.isEnabled}")
+            // Get all menu items
+            val bookmarkItem = menu.findItem(R.id.itemBookmark)
+            val searchItem = menu.findItem(R.id.itemSearch)
+            val configItem = menu.findItem(R.id.itemConfig)
+            val ttsItem = menu.findItem(R.id.itemTts)
+
+            // DEBUG: Log initial state
+            Log.d("MenuDebug", "Initial state - Bookmark: ${bookmarkItem?.isVisible}, Search: ${searchItem?.isVisible}, Config: ${configItem?.isVisible}, TTS: ${ttsItem?.isVisible}")
+
+            // === CRITICAL: FORCE ALL ITEMS TO BE VISIBLE ===
+            bookmarkItem?.isVisible = true
+            searchItem?.isVisible = true
+            configItem?.isVisible = true
+            ttsItem?.isVisible = config.isShowTts
+
+            // Set colors for visibility
+            bookmarkItem?.icon?.let {
+                UiUtil.setColorIntToDrawable(config.currentThemeColor, it)
+                Log.d("MenuDebug", "Bookmark icon colored")
+            }
+            searchItem?.icon?.let {
+                UiUtil.setColorIntToDrawable(config.currentThemeColor, it)
+                Log.d("MenuDebug", "Search icon colored")
+            }
+            configItem?.icon?.let {
+                UiUtil.setColorIntToDrawable(config.currentThemeColor, it)
+                Log.d("MenuDebug", "Config icon colored")
+            }
+            ttsItem?.icon?.let {
+                UiUtil.setColorIntToDrawable(config.currentThemeColor, it)
+                Log.d("MenuDebug", "TTS icon colored")
             }
 
-            // Ensure all icons are properly colored and visible
-            try {
-                // Bookmark icon
-                menu.findItem(R.id.itemBookmark)?.let { bookmarkItem ->
-                    bookmarkItem.isVisible = true
-                    UiUtil.setColorIntToDrawable(config.currentThemeColor, bookmarkItem.icon)
-                    Log.d("MenuDebug", "Bookmark icon set: visible=true")
-                }
-
-                // Search icon
-                menu.findItem(R.id.itemSearch)?.let { searchItem ->
-                    searchItem.isVisible = true
-                    UiUtil.setColorIntToDrawable(config.currentThemeColor, searchItem.icon)
-                    Log.d("MenuDebug", "Search icon set: visible=true")
-                }
-
-                // Config icon
-                menu.findItem(R.id.itemConfig)?.let { configItem ->
-                    configItem.isVisible = true
-                    UiUtil.setColorIntToDrawable(config.currentThemeColor, configItem.icon)
-                    Log.d("MenuDebug", "Config icon set: visible=true")
-                }
-
-                // TTS icon - only hide if explicitly disabled in config
-                menu.findItem(R.id.itemTts)?.let { ttsItem ->
-                    ttsItem.isVisible = config.isShowTts
-                    if (config.isShowTts) {
-                        UiUtil.setColorIntToDrawable(config.currentThemeColor, ttsItem.icon)
-                    }
-                    Log.d("MenuDebug", "TTS icon set: visible=${config.isShowTts}")
-                }
-            } catch (e: Exception) {
-                Log.e("MenuDebug", "Error setting menu icons", e)
-            }
-
-            // Set overflow menu color
-            try {
-                toolbar?.overflowIcon?.setColorFilter(config.currentThemeColor, PorterDuff.Mode.SRC_ATOP)
-            } catch (e: Exception) {
-                Log.e("MenuDebug", "Error setting overflow icon color", e)
-            }
-
-            Log.d("MenuDebug", "=== Menu Setup Complete ===")
+            // Final debug
+            Log.d("MenuDebug", "Final state - Bookmark: true, Search: true, Config: true, TTS: ${config.isShowTts}")
+            Log.d("MenuDebug", "=== MENU CREATION COMPLETED ===")
 
         } catch (e: Exception) {
-            Log.e("FOLIOREADER", "Error in onCreateOptionsMenu: " + e.message, e)
+            Log.e("FOLIOREADER", "Error in onCreateOptionsMenu: ${e.message}", e)
+            // Even if there's an error, return true to allow menu creation
+            return true
         }
 
         return true
